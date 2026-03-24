@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>家計簿入力</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body {
+            padding-top: 20px;
+            padding-bottom: 80px;
+            /* 下部余白を増やす */
+            background-color: #f8f9fa;
+        }
+
+        .container {
+            max-width: 600px;
+        }
+
+        .form-label {
+            font-weight: bold;
+        }
+
+        #loading {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(255, 255, 255, 0.8);
+            z-index: 9999;
+            justify-content: center;
+            align-items: center;
+        }
+
+        /* カスタムボタン色 */
+        .btn-outline-sakura {
+            --bs-btn-color: #ff69b4;
+            --bs-btn-border-color: #ff69b4;
+            --bs-btn-hover-color: #fff;
+            --bs-btn-hover-bg: #ff69b4;
+            --bs-btn-hover-border-color: #ff69b4;
+            --bs-btn-focus-shadow-rgb: 255, 105, 180;
+            --bs-btn-active-color: #fff;
+            --bs-btn-active-bg: #ff69b4;
+            --bs-btn-active-border-color: #ff69b4;
+        }
+
+        .btn-outline-cream {
+            /* 薄い黄色 */
+            --bs-btn-color: #d4ac0d;
+            --bs-btn-border-color: #f1c40f;
+            --bs-btn-hover-color: #000;
+            --bs-btn-hover-bg: #f9e79f;
+            --bs-btn-hover-border-color: #f1c40f;
+            --bs-btn-focus-shadow-rgb: 241, 196, 15;
+            --bs-btn-active-color: #000;
+            --bs-btn-active-bg: #f9e79f;
+            --bs-btn-active-border-color: #f1c40f;
+        }
+
+        .btn-outline-sky {
+            /* 水色 */
+            --bs-btn-color: #0dcaf0;
+            --bs-btn-border-color: #0dcaf0;
+            --bs-btn-hover-color: #000;
+            --bs-btn-hover-bg: #0dcaf0;
+            --bs-btn-hover-border-color: #0dcaf0;
+            --bs-btn-focus-shadow-rgb: 13, 202, 240;
+            --bs-btn-active-color: #000;
+            --bs-btn-active-bg: #0dcaf0;
+            --bs-btn-active-border-color: #0dcaf0;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="container">
+        <h2 class="text-center mb-4">📝 家計簿入力</h2>
+
+        <div id="alert-area"></div>
+
+        <form id="kakeiboForm" onsubmit="submitForm(event)">
+            <!-- 1. 日付 -->
+            <div class="mb-3">
+                <label for="datetime" class="form-label">日付</label>
+                <input type="date" class="form-control" id="datetime" required>
+            </div>
+
+            <!-- 2. 金額 -->
+            <div class="mb-3">
+                <label for="amount" class="form-label">金額 (円)</label>
+                <div class="input-group">
+                    <input type="number" class="form-control" id="amount" placeholder="例: 1000" required
+                        inputmode="numeric">
+                    <div class="input-group-text">
+                        <input class="form-check-input mt-0" type="checkbox" id="isMinus" value="">
+                        <label class="form-check-label ms-1 mb-0" for="isMinus" style="cursor: pointer;">マイナス</label>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 3. 支払い方法 -->
+            <div class="mb-3">
+                <label class="form-label d-block">支払い方法</label>
+                <div class="btn-group w-100 mb-2" role="group" aria-label="Payment Method">
+                    <input type="radio" class="btn-check" name="paymentMethodRadio" id="pm_card" value="クレカ" checked
+                        onchange="togglePaymentInputs()">
+                    <label class="btn btn-outline-primary" for="pm_card">クレカ</label>
+
+                    <input type="radio" class="btn-check" name="paymentMethodRadio" id="pm_cash" value="現金"
+                        onchange="togglePaymentInputs()">
+                    <label class="btn btn-outline-primary" for="pm_cash">現金</label>
+
+                    <input type="radio" class="btn-check" name="paymentMethodRadio" id="pm_paypay" value="PayPay"
+                        onchange="togglePaymentInputs()">
+                    <label class="btn btn-outline-primary" for="pm_paypay">PayPay</label>
+
+                    <input type="radio" class="btn-check" name="paymentMethodRadio" id="pm_other_radio" value="dropdown"
+                        onchange="togglePaymentInputs()">
+                    <label class="btn btn-outline-primary" for="pm_other_radio">その他▼</label>
+                </div>
+                <select class="form-select mb-2" id="paymentDropdown" style="display: none;"
+                    onchange="togglePaymentInputs()">
+                    <option value="" selected disabled>選択してください</option>
+                    <option value="口座振込">口座振込</option>
+                    <option value="Suica">Suica</option>
+                    <option value="iD">iD</option>
+                    <option value="スタバカード">スタバカード</option>
+                    <option value="その他">その他</option>
+                </select>
+                <input type="text" class="form-control" id="paymentInput" placeholder="直接入力してください"
+                    style="display: none;">
+            </div>
+
+            <!-- 4. 支払い元・支払い先 -->
+            <div class="row">
+                <!-- 支払い元 -->
+                <div class="col-6 mb-3">
+                    <label class="form-label d-block">誰が払った？</label>
+                    <div class="d-grid gap-2" id="payer-area">
+                        <input type="radio" class="btn-check" name="payer" id="payer_0" value="おにさん">
+                        <label class="btn btn-outline-sky" for="payer_0">おにさん</label>
+                        <input type="radio" class="btn-check" name="payer" id="payer_1" value="おねさん" checked>
+                        <label class="btn btn-outline-sakura" for="payer_1">おねさん</label>
+                    </div>
+                </div>
+
+                <!-- 支払い先 -->
+                <div class="col-6 mb-3">
+                    <label class="form-label d-block">誰のため？</label>
+                    <div class="d-grid gap-2" id="payee-area">
+                        <input type="radio" class="btn-check" name="payee" id="payee_0" value="おにさん">
+                        <label class="btn btn-outline-sky" for="payee_0">おにさん</label>
+                        <input type="radio" class="btn-check" name="payee" id="payee_1" value="おねさん" checked>
+                        <label class="btn btn-outline-sakura" for="payee_1">おねさん</label>
+                        <input type="radio" class="btn-check" name="payee" id="payee_2" value="二人">
+                        <label class="btn btn-outline-cream" for="payee_2">二人</label>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 5. 科目 -->
+            <div class="mb-3">
+                <label for="category" class="form-label">科目</label>
+                <select class="form-select" id="category" required>
+                    <option value="" selected disabled>読み込み中...</option>
+                </select>
+            </div>
+
+            <!-- 6. メモ -->
+            <div class="mb-3">
+                <label for="memo" class="form-label">メモ</label>
+                <input type="text" class="form-control" id="memo" placeholder="詳細など">
+            </div>
+
+            <!-- 送信ボタン -->
+            <div class="d-grid gap-2 mb-4">
+                <button type="submit" class="btn btn-primary btn-lg">記録する</button>
+            </div>
+
+            <!-- 取り消しボタン -->
+            <div class="d-grid gap-2">
+                <button type="button" class="btn btn-outline-danger" onclick="cancelEntry()">↩️ 直前の記録を取り消す</button>
+            </div>
+        </form>
+    </div>
+
+    <!-- ローディング表示 -->
+    <div id="loading">
+        <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">Loading...</span>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // 初期ロード時にGASからデータを取得
+        window.onload = function () {
+            const today = new Date().toISOString().split('T')[0];
+            document.getElementById('datetime').value = today;
+
+            google.script.run.withSuccessHandler(initializeForm).getDataForForm();
+        };
+
+        function initializeForm(data) {
+            // 科目リストの設定
+            const categorySelect = document.getElementById('category');
+            categorySelect.innerHTML = '<option value="" selected disabled>選択してください</option>';
+            data.categories.forEach(cat => {
+                const option = document.createElement('option');
+                option.value = cat;
+                option.text = cat;
+                categorySelect.appendChild(option);
+            });
+
+            // ローカルストレージから前回値を読み込み
+            const savedPaymentMethod = localStorage.getItem('kakeibo_paymentMethod');
+
+            // 支払い方法のデフォルト復元
+            if (savedPaymentMethod) {
+                const radios = document.getElementsByName('paymentMethodRadio');
+                let foundRadio = false;
+                for (const radio of radios) {
+                    if (radio.value === savedPaymentMethod) {
+                        radio.checked = true;
+                        foundRadio = true;
+                        break;
+                    }
+                }
+                if (!foundRadio) {
+                    const dropdown = document.getElementById('paymentDropdown');
+                    let foundDropdown = false;
+                    for (const option of dropdown.options) {
+                        if (option.value === savedPaymentMethod) {
+                            dropdown.value = savedPaymentMethod;
+                            foundDropdown = true;
+                            break;
+                        }
+                    }
+                    if (foundDropdown) {
+                        document.getElementById('pm_other_radio').checked = true;
+                    } else if (savedPaymentMethod) {
+                        document.getElementById('pm_other_radio').checked = true;
+                        dropdown.value = "その他";
+                        document.getElementById('paymentInput').value = savedPaymentMethod;
+                    }
+                }
+                togglePaymentInputs();
+            } else {
+                togglePaymentInputs();
+            }
+        }
+
+        function togglePaymentInputs() {
+            const radioVal = document.querySelector('input[name="paymentMethodRadio"]:checked')?.value || "クレカ";
+            const dropdown = document.getElementById('paymentDropdown');
+            const input = document.getElementById('paymentInput');
+
+            if (radioVal === "dropdown") {
+                dropdown.style.display = 'block';
+                if (dropdown.value === 'その他') {
+                    input.style.display = 'block';
+                } else {
+                    input.style.display = 'none';
+                }
+            } else {
+                dropdown.style.display = 'none';
+                input.style.display = 'none';
+            }
+        }
+
+        // フォーム送信処理
+        function submitForm(event) {
+            event.preventDefault();
+
+            const loading = document.getElementById('loading');
+            loading.style.display = 'flex';
+
+            let paymentMethod = "";
+            const radioVal = document.querySelector('input[name="paymentMethodRadio"]:checked').value;
+            if (radioVal === "dropdown") {
+                const dropdownVal = document.getElementById('paymentDropdown').value;
+                if (!dropdownVal) {
+                    alert('支払い方法をプルダウンから選択してください。');
+                    loading.style.display = 'none';
+                    return;
+                }
+                if (dropdownVal === "その他") {
+                    paymentMethod = document.getElementById('paymentInput').value.trim();
+                    if (!paymentMethod) {
+                        alert('支払い方法を入力してください。');
+                        loading.style.display = 'none';
+                        return;
+                    }
+                } else {
+                    paymentMethod = dropdownVal;
+                }
+            } else {
+                paymentMethod = radioVal;
+            }
+
+            const payerChecked = document.querySelector('input[name="payer"]:checked');
+            const payeeChecked = document.querySelector('input[name="payee"]:checked');
+
+            if (!payerChecked || !payeeChecked) {
+                alert('支払い元と支払い先を選択してください。');
+                loading.style.display = 'none';
+                return;
+            }
+
+            const payer = payerChecked.value;
+            const payee = payeeChecked.value;
+
+            // ローカルストレージに保存（支払い方法のみ）
+            localStorage.setItem('kakeibo_paymentMethod', paymentMethod);
+
+            let finalAmount = document.getElementById('amount').value;
+            if (document.getElementById('isMinus').checked && finalAmount !== '') {
+                finalAmount = finalAmount.startsWith('-') ? finalAmount : '-' + finalAmount;
+            }
+
+            const formData = {
+                datetime: document.getElementById('datetime').value,
+                amount: finalAmount,
+                paymentMethod: paymentMethod,
+                category: document.getElementById('category').value,
+                payer: payer,
+                payee: payee,
+                memo: document.getElementById('memo').value
+            };
+
+            google.script.run
+                .withSuccessHandler(onSuccess)
+                .withFailureHandler(onFailure)
+                .processForm(formData);
+        }
+
+        function onSuccess(response) {
+            document.getElementById('loading').style.display = 'none';
+
+            const alertArea = document.getElementById('alert-area');
+            if (response.success) {
+                alertArea.innerHTML = `<div class="alert alert-success fade show" role="alert">${response.message}</div>`;
+                // フォームのリセット（日付と支払元以外）
+                document.getElementById('amount').value = '';
+                document.getElementById('isMinus').checked = false;
+                document.getElementById('memo').value = '';
+                // 科目等はそのままにするか、リセットするかは使い勝手次第だが、一旦そのまま
+            } else {
+                alertArea.innerHTML = `<div class="alert alert-danger fade show" role="alert">${response.message}</div>`;
+            }
+
+            // 3秒後にアラートを消す
+            setTimeout(() => { alertArea.innerHTML = ''; }, 3000);
+        }
+
+        function onFailure(error) {
+            document.getElementById('loading').style.display = 'none';
+            alert('エラーが発生しました: ' + error.message);
+        }
+
+        // 取り消し処理
+        function cancelEntry() {
+            if (!confirm('本当に直前の記録を削除しますか？')) {
+                return;
+            }
+
+            const loading = document.getElementById('loading');
+            loading.style.display = 'flex';
+
+            google.script.run
+                .withSuccessHandler((response) => {
+                    document.getElementById('loading').style.display = 'none';
+                    const alertArea = document.getElementById('alert-area');
+                    if (response.success) {
+                        alertArea.innerHTML = `<div class="alert alert-warning fade show" role="alert">${response.message}</div>`;
+                    } else {
+                        alertArea.innerHTML = `<div class="alert alert-danger fade show" role="alert">${response.message}</div>`;
+                    }
+                    setTimeout(() => { alertArea.innerHTML = ''; }, 3000);
+                })
+                .withFailureHandler(onFailure)
+                .cancelLastEntryFromWeb();
+        }
+    </script>
+
+</body>
+
+</html>
