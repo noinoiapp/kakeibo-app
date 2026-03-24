@@ -234,12 +234,13 @@ function cancelLastEntry() {
     const datetime = lastData[0];
     const amount = lastData[1];
     const category = lastData[5];
+    const memo = lastData[6];
     
     // 最終行をクリア
     sheet.getRange(lastRow, 1, 1, sheet.getLastColumn()).clear();
     
     // メッセージ作成
-    const message = `🗑️ 取り消しました\n日時: ${Utilities.formatDate(datetime, 'Asia/Tokyo', 'yyyy年M月d日')}\n金額: ${amount}円\n科目: ${category}`;
+    const message = `🗑️ 取り消しました\n日時: ${Utilities.formatDate(datetime, 'Asia/Tokyo', 'yyyy年M月d日')}\n金額: ${amount}円\n科目: ${category}\n詳細: ${memo || ''}`;
 
     // ※ここでの pushToLineGroup 呼び出しは削除（呼び出し元で制御）
     
