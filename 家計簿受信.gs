@@ -326,13 +326,8 @@ function pushToDiscord(message, type = 'info', sheetId = null, row = null) {
   const title = lines[0] || '通知';
   let description = lines.slice(1).join('\n').trim();
   
-  // メンション処理用のフラグとテキスト置換
-  const mentions = [];
-  if (description.includes('おにさん')) mentions.push('@noinoiapp');
-  if (description.includes('おねさん')) mentions.push('@nade322');
-  
-  // Discordの文章上にも @noinoiapp と表示するため置換します
-  description = description.replace(/おにさん/g, '@noinoiapp').replace(/おねさん/g, '@nade322');
+  // embed内で直接メンションするための置換
+  description = description.replace(/おにさん/g, '<@noinoiapp>').replace(/おねさん/g, '<@nade322>');
   
   // スプレッドシートのリンク追加
   let sheetUrl = `https://docs.google.com/spreadsheets/d/${CONFIG.SPREADSHEET_ID}/edit`;
@@ -351,7 +346,6 @@ function pushToDiscord(message, type = 'info', sheetId = null, row = null) {
   if (type === 'error') color = 16711680; // 赤色
   
   const payload = {
-    content: mentions.length > 0 ? mentions.join(' ') : "", 
     embeds: [{
       title: title,
       description: description,
