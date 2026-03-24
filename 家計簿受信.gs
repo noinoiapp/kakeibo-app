@@ -327,7 +327,7 @@ function pushToDiscord(message, type = 'info', sheetId = null, row = null) {
   let description = lines.slice(1).join('\n').trim();
   
   // embed内で直接メンションするための置換
-  description = description.replace(/おにさん/g, '<@noinoiapp>').replace(/おねさん/g, '<@nade322>');
+  description = description.replace(/おにさん/g, '<@247739738306379776>').replace(/おねさん/g, '<@1485152218511446097>');
   
   // スプレッドシートのリンク追加
   let sheetUrl = `https://docs.google.com/spreadsheets/d/${CONFIG.SPREADSHEET_ID}/edit`;
