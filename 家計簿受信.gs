@@ -199,7 +199,12 @@ function writeToSpreadsheet(data) {
   sheet.getRange(newRow, 1, 1, rowData.length).setValues([rowData]);
   
   // 日付列(A列)の表示形式を設定
-  sheet.getRange(newRow, 1).setNumberFormat('yyyy/MM/dd (ddd)');;
+  sheet.getRange(newRow, 1).setNumberFormat('yyyy/MM/dd (ddd)');
+  
+  return {
+    sheetId: sheet.getSheetId(),
+    row: newRow
+  };
 }
 
 // ========================================
@@ -240,7 +245,9 @@ function cancelLastEntry() {
     
     return {
       success: true,
-      message: message
+      message: message,
+      sheetId: sheet.getSheetId(),
+      row: lastRow
     };
     
   } catch (error) {
@@ -264,13 +271,15 @@ function cancelLastEntryFromWeb() {
       const webMessage = '🗑webから取り消し📱\n' + result.message.replace('🗑️ 取り消しました\n', '');
       
       // Discordへ通知
-      pushToDiscord(webMessage);
+      pushToDiscord(webMessage, 'warning', result.sheetId, result.row);
       
       return result;
     } else {
+      pushToDiscord(`👻 エラー\n取り消し処理に失敗しました: ${result.message}`, 'error');
       return result;
     }
   } catch (e) {
+     pushToDiscord(`👻 エラー\n取り消し処理中にシステムエラーが発生しました: ${e.message}`, 'error');
      return {
       success: false,
       message: `👻 エラー: ${e.message}`
@@ -308,12 +317,46 @@ function replyToLine(replyToken, message) {
 // ========================================
 // Discordにプッシュ通知
 // ========================================
-function pushToDiscord(message) {
+function pushToDiscord(message, type = 'info', sheetId = null, row = null) {
   const url = CONFIG.DISCORD_WEBHOOK_URL;
   if (!url) return;
   
+  // 1行目をタイトル、それ以降を説明文にする
+  const lines = message.split('\n');
+  const title = lines[0] || '通知';
+  let description = lines.slice(1).join('\n').trim();
+  
+  // メンション処理用のフラグとテキスト置換
+  const mentions = [];
+  if (description.includes('おにさん')) mentions.push('@noinoiapp');
+  if (description.includes('おねさん')) mentions.push('@nade322');
+  
+  // Discordの文章上にも @noinoiapp と表示するため置換します
+  description = description.replace(/おにさん/g, '@noinoiapp').replace(/おねさん/g, '@nade322');
+  
+  // スプレッドシートのリンク追加
+  let sheetUrl = `https://docs.google.com/spreadsheets/d/${CONFIG.SPREADSHEET_ID}/edit`;
+  if (sheetId !== null) {
+    sheetUrl += `#gid=${sheetId}`;
+    if (row !== null) {
+      sheetUrl += `&range=A${row}`;
+    }
+  }
+  
+  description += `\n\n[スプレッドシートで確認](${sheetUrl})`;
+  
+  // 色の設定 ("webから記録"・"定期支払い正常"=水色, "取り消し"=黄色, "エラー"=赤色)
+  let color = 49151; // 水色 (info)
+  if (type === 'warning') color = 16766720; // 黄色
+  if (type === 'error') color = 16711680; // 赤色
+  
   const payload = {
-    content: message
+    content: mentions.length > 0 ? mentions.join(' ') : "", 
+    embeds: [{
+      title: title,
+      description: description,
+      color: color
+    }]
   };
   
   const options = {
@@ -364,7 +407,7 @@ function createNotificationMessage(data, source) {
     header = '✏️webから記録📱';
   }
   
-  return `${header}\n日時: ${Utilities.formatDate(data.datetime, 'Asia/Tokyo', 'yyyy年M月d日')}\n金額: ${data.amount}円\n支払い方法: ${data.paymentMethod}\n支払い元: ${data.payer}\n支払い先: ${data.payee}\n科目: ${data.category}`;
+  return `${header}\n日時: ${Utilities.formatDate(data.datetime, 'Asia/Tokyo', 'yyyy年M月d日')}\n金額: ${data.amount}円\n支払い方法: ${data.paymentMethod}\n支払い元: ${data.payer}\n支払い先: ${data.payee}\n科目: ${data.category}\n詳細: ${data.memo || ''}`;
 }
 
 // ========================================
@@ -431,13 +474,13 @@ function processForm(formData) {
     };
     
     // スプレッドシートに記録
-    writeToSpreadsheet(data);
+    const result = writeToSpreadsheet(data);
     
     // LINE通知用のメッセージを作成 (source='web'を指定)
     const notificationMessage = createNotificationMessage(data, 'web');
     
     // Discordへ通知
-    pushToDiscord(notificationMessage);
+    pushToDiscord(notificationMessage, 'info', result.sheetId, result.row);
 
     return {
       success: true,
@@ -446,6 +489,7 @@ function processForm(formData) {
     
   } catch (error) {
     console.error('Error in processForm:', error);
+    pushToDiscord(`👻 エラー\nプロセスの実行中にエラーが発生しました: ${error.message}`, 'error');
     return {
       success: false,
       message: '❌ エラー: ' + error.message

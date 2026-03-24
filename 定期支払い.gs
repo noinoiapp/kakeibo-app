@@ -83,7 +83,7 @@ function executeRecurringPayments() {
       }
     }
     
-    // LINEに通知(記録があった場合のみ)
+    // Discordに通知(記録があった場合のみ)
     if (results.length > 0 || errors.length > 0) {
       let message = `【定期支払い自動記録 ${currentYear}年${currentMonth}月${currentDay}日】\n\n`;
       
@@ -95,14 +95,19 @@ function executeRecurringPayments() {
         message += '\n\n【エラー】\n' + errors.join('\n');
       }
       
-      pushToDiscord(message);
+      // エラーがあれば赤色(error)、なければ水色(info)
+      const type = errors.length > 0 ? 'error' : 'info';
+      const targetSheet = ss.getSheetByName(CONFIG.SHEET_NAME);
+      const sheetId = targetSheet ? targetSheet.getSheetId() : null;
+      
+      pushToDiscord(message, type, sheetId);
     }
     
     console.log(`定期支払い実行完了: 成功${results.length}件, エラー${errors.length}件`);
     
   } catch (error) {
     console.error('Error in executeRecurringPayments:', error);
-    pushToDiscord(`👻 定期支払い実行エラー: ${error.message}`);
+    pushToDiscord(`👻 定期支払い実行エラー\nシステムエラー: ${error.message}`, 'error');
   }
 }
 
