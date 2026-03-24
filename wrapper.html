@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <title>家計簿</title>
+
+    <!-- ホーム画面に追加した際のアプリアイコン（iOS用） -->
+    <link rel="apple-touch-icon"
+        href="https://fonts.gstatic.com/s/i/short-term/release/googlesymbols/account_balance_wallet/default/192px.svg">
+
+    <!-- iOSでフルスクリーン表示にするための設定 -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="家計簿">
+
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            height: 100vh;
+        }
+
+        body {
+            background-color: #f8f9fa;
+            /* GASアプリと同じ背景色 */
+        }
+
+        /* GASのバナーを隠すために、iframeの高さを広げて上にずらしています */
+        iframe {
+            border: none;
+            width: 100%;
+            height: calc(100vh + 30px);
+            /* バナー分（約27〜30px）高さを余分に取る */
+            margin-top: -30px;
+            /* バナーを上にずらして画面外に隠す */
+        }
+    </style>
+</head>
+
+<body>
+    <!-- 
+    ========================================================
+    【重要】srcの部分を、ご自身のGAS WebアプリのURLに書き換えてください。
+    例: src="https://script.google.com/macros/s/AKfycb.../exec"
+    ========================================================
+  -->
+    <iframe id="gasiframe"
+        src="https://script.google.com/macros/s/AKfycbxwwYuOQa8rpHuCx10A1FIIBV-EuRq6AY1T1AysiEyGJn-W4j6xi_wIz7dKG5mTA4nSkA/exec"></iframe>
+
+    <script>
+        window.onload = (e) => {
+            const gasappurl = 'https://script.google.com/macros/s/AKfycbxwwYuOQa8rpHuCx10A1FIIBV-EuRq6AY1T1AysiEyGJn-W4j6xi_wIz7dKG5mTA4nSkA/exec';
+            const ifm = document.getElementById('gasiframe');
+            ifm.src = gasappurl + window.location.search;
+        }
+    </script>
+</body>
+
+</html>
